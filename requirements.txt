@@ -1,0 +1,9 @@
+google-cloud-spanner
+google-cloud-aiplatform
+streamlit
+faker
+networkx
+pyvis
+pandas
+numpy
+google-auth
