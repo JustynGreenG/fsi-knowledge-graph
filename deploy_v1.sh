@@ -33,6 +33,7 @@ gcloud spanner instances create $INSTANCE_ID \
     --config=regional-$REGION \
     --description="FSI Demo Instance" \
     --nodes=1 \
+    --edition=enterprise \
     --project=$PROJECT_ID || echo "Instance likely exists, skipping creation."
 
 # Create Database if not exists
