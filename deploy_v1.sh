@@ -35,6 +35,11 @@ gcloud spanner instances create $INSTANCE_ID \
     --nodes=1 \
     --project=$PROJECT_ID || echo "Instance likely exists, skipping creation."
 
+# Create Database if not exists
+gcloud spanner databases create $DATABASE_ID \
+    --instance=$INSTANCE_ID \
+    --project=$PROJECT_ID || echo "Database likely exists, skipping creation."
+
 # Run Schema Script
 python3 setup_schema.py --project_id=$PROJECT_ID --instance_id=$INSTANCE_ID --database_id=$DATABASE_ID
 
