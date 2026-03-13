@@ -34,7 +34,7 @@ Follow these steps to deploy the demo to your Google Cloud Project.
 Set your environment variables to target your GCP project and preferred Spanner IDs:
 
 ```bash
-export GCP_PROJECT_ID="your-project-id"
+export GCP_PROJECT_ID="justyn-demo-bank-ai"
 export SPANNER_INSTANCE_ID="fsi-demo-instance"
 export SPANNER_DATABASE_ID="fsi-customer-db"
 export GCP_REGION="us-central1"

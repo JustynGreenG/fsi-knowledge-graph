@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-PROJECT_ID=${GCP_PROJECT_ID:-"pv-knowledge-graph-demo"}
+PROJECT_ID=${GCP_PROJECT_ID:-"justyn-demo-bank-ai"}
 INSTANCE_ID=${SPANNER_INSTANCE_ID:-"fsi-demo-instance"}
 DATABASE_ID=${SPANNER_DATABASE_ID:-"fsi-customer-db"}
 REGION=${GCP_REGION:-"us-central1"}
