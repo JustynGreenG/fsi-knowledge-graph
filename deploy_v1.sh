@@ -24,7 +24,7 @@ gcloud services enable spanner.googleapis.com \
 
 # 2. Python Dependencies
 echo "📦 Installing Python dependencies..."
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 # 3. Spanner Setup
 echo "🗄️ Setting up Spanner Schema..."
