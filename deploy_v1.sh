@@ -7,6 +7,10 @@ DATABASE_ID=${SPANNER_DATABASE_ID:-"fsi-customer-db"}
 REGION=${GCP_REGION:-"us-central1"}
 
 # Pre-Requisite
+# --- Google SSO Services - gcert ---
+## Interactively request a new SSO certificate
+gcert
+# ---------------------------------
 # --- Virtual Environment Setup ---
 VENV_PATH="./.venv"
 
