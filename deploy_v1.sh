@@ -6,6 +6,23 @@ INSTANCE_ID=${SPANNER_INSTANCE_ID:-"fsi-demo-instance"}
 DATABASE_ID=${SPANNER_DATABASE_ID:-"fsi-customer-db"}
 REGION=${GCP_REGION:-"us-central1"}
 
+# Pre-Requisite
+# --- Virtual Environment Setup ---
+VENV_PATH="./.venv"
+
+if [ ! -d "$VENV_PATH" ]; then
+    echo "🛠️ Creating python virtual environment..."
+    python3 -m venv "$VENV_PATH"
+fi
+
+if [[ "$VIRTUAL_ENV" != *"$VENV_PATH"* ]]; then
+    echo "💡 Activating virtual environment..."
+    source "$VENV_PATH/bin/activate"
+else
+    echo "✅ Virtual environment already active."
+fi
+# ---------------------------------
+
 echo "🚀 Starting Deployment for Customer Twins Demo..."
 echo "------------------------------------------------"
 echo "Project: $PROJECT_ID"
