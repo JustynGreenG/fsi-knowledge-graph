@@ -2,14 +2,34 @@ import argparse
 import os
 import random
 import uuid
+import time
 from datetime import datetime, timedelta
 from faker import Faker
 from google.cloud import spanner
+from google.api_core.exceptions import NotFound
 
 fake = Faker()
+print("DEBUG: Running generate_data.py VERSION 2.0 (Upsert Enabled)")
 
 def log(msg):
     print(f"[GenerateData] {msg}")
+
+def wait_for_database(instance, database_id):
+    """Waits for the database to be ready."""
+    database = instance.database(database_id)
+    max_retries = 10
+    for i in range(max_retries):
+        try:
+            database.reload()
+            log("✅ Database connected.")
+            return database
+        except NotFound:
+            log(f"source database {database_id} not found... retrying ({i+1}/{max_retries})")
+            time.sleep(5)
+        except Exception as e:
+            log(f"⚠️ Error check: {e}... retrying")
+            time.sleep(5)
+    raise Exception("Database not found after retries.")
 
 def generate_customers(num=50):
     customers = []
@@ -30,7 +50,6 @@ def generate_customers(num=50):
 
 def generate_accounts(customers):
     accounts = []
-    types = ["SAVINGS", "CHECKING", "The credit account", "INVESTMENT", "LOAN"] # "The credit account" to match earlier thought, but standardizing to CREDIT
     
     for c in customers:
         # Each customer has 1-3 accounts
@@ -95,12 +114,12 @@ def batch_insert(database, table, data):
     for i in range(0, len(values), batch_size):
         batch = values[i:i+batch_size]
         with database.batch() as batch_txn:
-            batch_txn.insert(
+            batch_txn.replace(
                 table=table,
                 columns=columns,
                 values=batch
             )
-    log(f"Inserted {len(data)} rows into {table}")
+    log(f"Upserted {len(data)} rows into {table}")
 
 def main(project_id, instance_id, database_id):
     log("Generating Synthetic Data...")
@@ -116,7 +135,9 @@ def main(project_id, instance_id, database_id):
     # Connect to Spanner
     spanner_client = spanner.Client(project=project_id)
     instance = spanner_client.instance(instance_id)
-    database = instance.database(database_id)
+    
+    # Wait for DB readiness
+    database = wait_for_database(instance, database_id)
     
     # Insert Data
     batch_insert(database, "Customers", customers)
@@ -129,7 +150,7 @@ def main(project_id, instance_id, database_id):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Customer Twins Data.")
-    parser.add_argument("--project_id", default=os.environ.get("GCP_PROJECT_ID", "pv-knowledge-graph-demo")) 
+    parser.add_argument("--project_id", default=os.environ.get("GCP_PROJECT_ID", "pv-fsi-knowledge-graph")) 
     parser.add_argument("--instance_id", default=os.environ.get("SPANNER_INSTANCE_ID", "fsi-demo-instance"))
     parser.add_argument("--database_id", default=os.environ.get("SPANNER_DATABASE_ID", "fsi-customer-db"))
     

@@ -70,12 +70,12 @@ echo "🌱 Generating Synthetic Data..."
 python3 generate_data.py --project_id=$PROJECT_ID --instance_id=$INSTANCE_ID --database_id=$DATABASE_ID
 
 # 5. Deploy Streamlit App to Cloud Run
-echo "🦄 Deploying Streamlit to Cloud Run..."
-gcloud run deploy customer-twins-demo \
-    --source . \
-    --region $REGION \
-    --project $PROJECT_ID \
-    --allow-unauthenticated \
-    --set-env-vars GCP_PROJECT_ID=$PROJECT_ID,SPANNER_INSTANCE_ID=$INSTANCE_ID,SPANNER_DATABASE_ID=$DATABASE_ID
+#echo "🦄 Deploying Streamlit to Cloud Run..."
+#gcloud run deploy customer-twins-demo \
+#    --source . \
+#    --region $REGION \
+#    --project $PROJECT_ID \
+#    --allow-unauthenticated \
+#    --set-env-vars GCP_PROJECT_ID=$PROJECT_ID,SPANNER_INSTANCE_ID=$INSTANCE_ID,SPANNER_DATABASE_ID=$DATABASE_ID
 
 echo "✅ Deployment Complete! Check the Cloud Run URL above."

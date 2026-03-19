@@ -7,3 +7,5 @@ pyvis
 pandas
 numpy
 google-auth
+protobuf
+watchdog

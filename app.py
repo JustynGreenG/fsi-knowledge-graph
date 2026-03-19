@@ -11,18 +11,86 @@ from google.cloud import spanner
 from google.cloud import aiplatform
 
 # --- CONFIGURATION ---
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "pv-knowledge-graph-demo")
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "pv-fsi-knowledge-graph")
 SPANNER_INSTANCE_ID = os.environ.get("SPANNER_INSTANCE_ID", "fsi-demo-instance")
 SPANNER_DATABASE_ID = os.environ.get("SPANNER_DATABASE_ID", "fsi-customer-db")
+SPANNER_DATABASE_ID = os.environ.get("SPANNER_DATABASE_ID", "fsi-customer-db")
 REGION = os.environ.get("GCP_REGION", "us-central1")
+MODEL_NAME = "gemini-2.5-flash" # As requested by user/reference
 
-# Initialize Vertex AI
+# Initialise Vertex AI
 aiplatform.init(project=GCP_PROJECT_ID, location=REGION)
+
+@st.cache_resource
+def get_chat_model():
+    from vertexai.generative_models import GenerativeModel
+    return GenerativeModel(MODEL_NAME)
 
 st.set_page_config(page_title="Customer Twin Simulator", layout="wide", page_icon="🏦")
 
 # Inject FontAwesome
 st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">', unsafe_allow_html=True)
+
+# --- CBA BRANDING CSS ---
+st.markdown("""
+<style>
+    /* Main Background & Text */
+    .stApp {
+        background-color: #FFFFFF;
+        color: #333333;
+    }
+    
+    /* Headings */
+    h1, h2, h3 {
+        color: #111111 !important;
+        font-family: 'Open Sans', sans-serif;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #F8F9FA;
+        border-right: 1px solid #E0E0E0;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: #FFCC00 !important;
+        color: #000000 !important;
+        border-radius: 4px;
+        border: none;
+        font-weight: bold;
+    }
+    .stButton > button:hover {
+        background-color: #E6B800 !important;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        background-color: #F8F9FA;
+        border-radius: 4px 4px 0 0;
+        color: #333333;
+        border: 1px solid #E0E0E0;
+        border-bottom: none;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #FFCC00 !important;
+        color: #000000 !important;
+    }
+    
+    /* Metric Cards */
+    [data-testid="stMetricValue"] {
+        color: #111111 !important;
+    }
+    [data-testid="stMetricLabel"] {
+        color: #555555 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 @st.cache_resource
 def get_database():
@@ -44,6 +112,7 @@ def get_segments():
             rows = list(snapshot.execute_sql("SELECT DISTINCT segment FROM Customers"))
             return [r[0] for r in rows if r[0]]
     except Exception as e:
+        st.error(f"Segment Query Error: {e}")
         return ["Young Professional", "Retiree"] # Fallback
 
 def get_customer_graph(customer_id):
@@ -74,7 +143,7 @@ def get_customer_graph(customer_id):
     edges = []
     
     # SQL Implementation for robustness
-    with database.snapshot() as snapshot:
+    with database.snapshot(multi_use=True) as snapshot:
         # Get Customer
         c_rows = list(snapshot.execute_sql("SELECT customer_id, name, segment FROM Customers WHERE customer_id = @id", params={"id": customer_id}, param_types={"id": spanner.param_types.STRING}))
         if not c_rows: return [], []
@@ -110,13 +179,13 @@ def render_graph(nodes, edges):
         color = "#97c2fc" # Default Blue
         icon = None
         if n['type'] == 'Customer': 
-            color = "#ff0000" # Red
+            color = "#FFCC00" # CBA Yellow
             icon = "f007" # user
         elif n['type'] == 'Account': 
-            color = "#00ff00" # Green
+            color = "#FFFFFF" # White/Light for contrast
             icon = "f555" # wallet
         elif n['type'] == 'Merchant': 
-            color = "#ffff00" # Yellow
+            color = "#00CB53" # Green for merchant/money
             icon = "f54e" # store
             
         net.add_node(n['id'], label=n['label'], title=n['title'], color=color) # , shape='icon', icon={'face': "'Font Awesome 5 Free'", 'code': icon}
@@ -130,34 +199,110 @@ def render_graph(nodes, edges):
         return f.read()
 
 # --- MAIN UI ---
-st.title("🏦 Customer Twin Simulator")
-st.markdown("### Hyper-Personalization with Spanner Graph & Vertex AI")
+st.title("🏦 CommBank Customer Twin Simulator")
+st.markdown("### Hyper-Personalisation with Spanner Graph & Vertex AI")
 
-tab_explore, tab_simulate = st.tabs(["🔍 360° Explorer", "🤖 Twin Simulation"])
 
+
+# --- SIDEBAR (Global Context) ---
+with st.sidebar:
+    st.image("commbank-logo.svg", width=64) # Official SVG Logo
+    st.header("👤 Customer Context")
+    segment = st.selectbox("Select Segment", get_segments())
+    
+    # Get Customers in Segment
+    cust_rows = []
+    try:
+        with database.snapshot() as snapshot:
+            cust_rows = list(snapshot.execute_sql("SELECT customer_id, name FROM Customers WHERE segment = @seg LIMIT 20", params={"seg": segment}, param_types={"seg": spanner.param_types.STRING}))
+    except Exception as e:
+        st.error(f"Customer Query Error: {e}")
+    
+    cust_dict = {r[1]: r[0] for r in cust_rows}
+    selected_name = st.selectbox("Select Customer", list(cust_dict.keys()))
+    
+    if selected_name:
+        cust_id = cust_dict[selected_name]
+        st.success(f"Active Twin: {selected_name}")
+        st.info(f"ID: {cust_id[:8]}...")
+
+# --- MAIN TAB UI ---
+tab_explore, tab_chat, tab_simulate = st.tabs(["🔍 360° Explorer", "💬 Chat with Twin", "🤖 Twin Simulation"])
+
+# 1. 360 EXPLORER
 with tab_explore:
-    c1, c2 = st.columns([1, 3])
-    with c1:
-        st.subheader("Select Customer")
-        segment = st.selectbox("Segment", get_segments())
+    if selected_name:
+        st.subheader(f"Graph View: {selected_name}")
+        st.markdown("""
+        <div style="margin-bottom: 10px;">
+            <span style="color: #E6B800; font-weight: bold;">● Customer</span> &nbsp;&nbsp;
+            <span style="color: #666666; font-weight: bold;">● Account</span> &nbsp;&nbsp;
+            <span style="color: #00C853; font-weight: bold;">● Merchant</span>
+        </div>
+        """, unsafe_allow_html=True)
+        nodes, edges = get_customer_graph(cust_id)
+        html = render_graph(nodes, edges)
+        components.html(html, height=520, scrolling=True)
+    else:
+        st.info("Please select a customer from the sidebar.")
+
+# 2. CHAT WITH TWIN
+with tab_chat:
+    st.subheader("💬 Chat with Knowledge Plane")
+    
+    if selected_name:
+        # Prepare Context
+        nodes, edges = get_customer_graph(cust_id)
         
-        # Get Customers in Segment
-        cust_rows = []
-        try:
-            with database.snapshot() as snapshot:
-                cust_rows = list(snapshot.execute_sql("SELECT customer_id, name FROM Customers WHERE segment = @seg LIMIT 20", params={"seg": segment}, param_types={"seg": spanner.param_types.STRING}))
-        except: pass
-        
-        cust_dict = {r[1]: r[0] for r in cust_rows}
-        selected_name = st.selectbox("Customer Name", list(cust_dict.keys()))
-        
-    with c2:
-        if selected_name:
-            cust_id = cust_dict[selected_name]
-            st.markdown(f"#### Graph View: {selected_name}")
-            nodes, edges = get_customer_graph(cust_id)
-            html = render_graph(nodes, edges)
-            components.html(html, height=520, scrolling=True)
+        # Simple Context Serialiser
+        context_text = f"Customer: {selected_name}\n\nContext Graph:\n"
+        for n in nodes:
+            context_text += f"- Node ({n['type']}): {n['label']} ({n.get('title','')})\n"
+        for e in edges:
+            context_text += f"- Edge: {e['from']} -[{e['label']}]-> {e['to']}\n"
+            
+        # Chat History
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        if prompt := st.chat_input(f"Ask about {selected_name}..."):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            with st.chat_message("assistant"):
+                model = get_chat_model()
+                full_prompt = f"""You are an expert CommBank AI Assistant analysing a Customer Twin Knowledge Graph.
+
+                Data Context:
+                {context_text}
+
+                User Question: {prompt}
+
+                Reasoning Guidelines:
+                1. ANALYZE: First, scan the graph data for spending patterns, merchant categories, and financial health indicators.
+                2. CONNECT: Relate these data points to the user's question (e.g., "Frequent coffee" -> "Lifestyle").
+                3. EVIDENCE: Always cite specific merchant names or transaction amounts to back up your insights.
+                
+                Response Guidelines:
+                - Tone: Professional, empathetic, and distinctly CommBank (warm & helpful).
+                - For "Draft Email" requests: Create a polished, ready-to-send email with a subject line, using specific details from the context to personalise it.
+                - For General Questions: Provide a direct answer followed by a brief "Why?" (evidence).
+                - Keep responses concise unless asked for detailed drafts.
+                """
+                
+                try:
+                    response = model.generate_content(full_prompt)
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                except Exception as e:
+                    st.error(f"GenAI Error: {e}")
+    else:
+        st.warning("Select a customer in the sidebar to start chatting.")
 
 with tab_simulate:
     st.subheader("🚀 Product Launch Simulation")

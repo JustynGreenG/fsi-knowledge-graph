@@ -1,6 +1,8 @@
 import argparse
 import os
+import time
 from google.cloud import spanner
+from google.api_core.exceptions import NotFound, AlreadyExists
 
 def log(msg):
     print(f"[SetupSchema] {msg}")
@@ -10,12 +12,24 @@ def apply_ddl(project_id, instance_id, database_id):
     spanner_client = spanner.Client(project=project_id)
     instance = spanner_client.instance(instance_id)
     database = instance.database(database_id)
-
-    # --- 1. TABLES DDL ---
-    # We use STRING(MAX) for IDs to allow UUIDs.
-    # We use TIMESTAMP for time.
-    # We Use FLOAT64 for money (Demo only; use NUMERIC in production).
     
+    # --- 1. CREATE DATABASE IF NOT EXISTS ---
+    try:
+        log(f"Attempting to create database {database_id}...")
+        operation = instance.database(database_id, ddl_statements=[]).create()
+        log("⏳ Database creation initiated. Waiting for completion (this may take 2-3 mins)...")
+        operation.result(timeout=600)
+        log("✅ Database created successfully.")
+    except AlreadyExists:
+        log("ℹ️ Database already exists. Proceeding...")
+    except Exception as e:
+        log(f"❌ Error during database creation: {e}")
+        # Try to proceed anyway, in case it was a transient error and DB exists
+    
+    # Re-init database object to be sure
+    database = instance.database(database_id)
+
+    # --- 2. TABLES DDL ---
     tables_ddl = [
         """CREATE TABLE Customers (
             customer_id STRING(MAX) NOT NULL,
@@ -70,7 +84,7 @@ def apply_ddl(project_id, instance_id, database_id):
         ) PRIMARY KEY (interaction_id)"""
     ]
 
-    # --- 2. GRAPH DDL ---
+    # --- 3. GRAPH DDL ---
     graph_ddl = """CREATE PROPERTY GRAPH CustomerGraph
           NODE TABLES (
             Customers,
@@ -99,10 +113,11 @@ def apply_ddl(project_id, instance_id, database_id):
     try:
         log("Creating Tables...")
         operation = database.update_ddl(tables_ddl)
-        operation.result(timeout=300)
+        operation.result(timeout=600)
         log("✅ Tables Created.")
     except Exception as e:
-        if "Duplicate name" in str(e):
+        # Check for specific error messages if not using specific Exception classes
+        if "Duplicate name" in str(e) or "already exists" in str(e):
             log("ℹ️ Tables likely already exist. Skipping.")
         else:
             log(f"❌ Failed to create tables: {e}")
@@ -111,17 +126,17 @@ def apply_ddl(project_id, instance_id, database_id):
     try:
         log("Creating 'CustomerGraph' property graph...")
         operation = database.update_ddl([graph_ddl])
-        operation.result(timeout=300)
+        operation.result(timeout=600)
         log("✅ Created 'CustomerGraph'.")
     except Exception as e:
-        if "Duplicate name" in str(e):
+         if "Duplicate name" in str(e) or "already exists" in str(e):
             log("ℹ️ Graph 'CustomerGraph' already exists. Skipping.")
-        else:
+         else:
             log(f"❌ Failed to create graph: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Apply Spanner Graph DDL for Customer Twins.")
-    parser.add_argument("--project_id", default=os.environ.get("GCP_PROJECT_ID", "pv-knowledge-graph-demo")) 
+    parser.add_argument("--project_id", default=os.environ.get("GCP_PROJECT_ID", "pv-fsi-knowledge-graph")) 
     parser.add_argument("--instance_id", default=os.environ.get("SPANNER_INSTANCE_ID", "fsi-demo-instance"))
     parser.add_argument("--database_id", default=os.environ.get("SPANNER_DATABASE_ID", "fsi-customer-db"))
     
