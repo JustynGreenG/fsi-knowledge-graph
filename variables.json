@@ -1,0 +1,8 @@
+{
+  "PROJECT_ID": "",
+  "INSTANCE_ID": "fsi-demo-instance",
+  "DATABASE_ID": "fsi-customer-db",
+  "REGION": "us-central1",
+  "SERVICE_NAME": "customer-twins-demo",
+  "REPO_NAME": "containers"
+}

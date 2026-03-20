@@ -1,14 +1,31 @@
 #!/bin/bash
 set -e
-
-# Configuration
-PROJECT_ID=${GCP_PROJECT_ID:-$(gcloud config get-value project)}
-INSTANCE_ID=${SPANNER_INSTANCE_ID:-"fsi-demo-instance"}
-DATABASE_ID=${SPANNER_DATABASE_ID:-"fsi-customer-db"}
-REGION=${GCP_REGION:-"us-central1"}
-SERVICE_NAME="customer-twins-demo"
-REPO_NAME="containers"
+### --- Configuration --- ###
+CONFIG_FILE="variables.json"
+# Verify jq is installed and the config file exists
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq is required but could not be found. Please install it."
+    exit 1
+fi
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Error: Configuration file $CONFIG_FILE not found."
+    exit 1
+fi
+# Read base variables from the JSON file
+PROJECT_ID=$(jq -r '.PROJECT_ID' "$CONFIG_FILE")
+INSTANCE_ID=$(jq -r '.INSTANCE_ID' "$CONFIG_FILE")
+DATABASE_ID=$(jq -r '.DATABASE_ID' "$CONFIG_FILE")
+REGION=$(jq -r '.REGION' "$CONFIG_FILE")
+SERVICE_NAME=$(jq -r '.SERVICE_NAME' "$CONFIG_FILE")
+REPO_NAME=$(jq -r '.REPO_NAME' "$CONFIG_FILE")
+# Handle dynamic fallbacks
+# If PROJECT_ID is empty or null in the JSON, fetch it from gcloud
+if [[ -z "$PROJECT_ID" || "$PROJECT_ID" == "null" ]]; then
+    PROJECT_ID=$(gcloud config get-value project)
+fi
+# Construct composite variables
 IMAGE_NAME="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$SERVICE_NAME"
+### --- End of Configuration --- ###
 
 # Pre-Requisite
 # --- Google SSO Services - gcert ---
