@@ -39,39 +39,27 @@ export SPANNER_INSTANCE_ID="fsi-demo-instance"
 export SPANNER_DATABASE_ID="fsi-customer-db"
 export GCP_REGION="us-central1"
 ```
+or
+
+Edit the variables.json file, found in the base of the repo, and update the values to match your environment.
+```
+{
+  "PROJECT_ID": "",
+  "INSTANCE_ID": "fsi-demo-instance",
+  "DATABASE_ID": "fsi-customer-db",
+  "REGION": "us-central1",
+  "SERVICE_NAME": "customer-twins-demo",
+  "REPO_NAME": "containers"
+}
+```
 
 ### 3. Run the Deployment Script
 The Repo includes a bash script that automates API enablement, schema creation, data generation, and Cloud Run deployment:
 
 ```bash
-chmod +x deploy_v1.sh
+chmod +x deploy.sh
 ./deploy_v1.sh
 ```
-
-Alternatively, you can run the steps manually:
-
-#### A. Enable APIs
-```bash
-gcloud services enable spanner.googleapis.com aiplatform.googleapis.com run.googleapis.com
-```
-
-#### B. Setup Spanner Schema
-```bash
-python3 setup_schema.py
-```
-
-#### C. Generate Synthetic Data
-```bash
-python3 generate_data.py
-```
-
-#### D. Deploy to Cloud Run
-```bash
-gcloud run deploy customer-twins-demo --source . --region $GCP_REGION --allow-unauthenticated
-```
-
----
-
 ## 💻 Local Development
 
 To run the application locally for testing:
@@ -87,6 +75,15 @@ To run the application locally for testing:
    ```
 
 *Note: Ensure you have valid GCP credentials configured locally (e.g., `gcloud auth application-default login`).*
+
+## 🧹 Cleanup
+
+**WARNING**: This script will delete the Spanner instance, database, and Cloud Run service.
+
+```bash
+chmod +x cleanup.sh
+./cleanup.sh
+```
 
 ---
 
