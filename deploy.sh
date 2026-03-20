@@ -127,7 +127,6 @@ echo "🔨 Building Container using Cloud Build..."
 # Using --tag forces a build and push to Artifact Registry
 gcloud builds submit --tag $IMAGE_NAME .
 
-
 # 6. Deploy to Cloud Run
 echo "🦄 Deploying to Cloud Run..."
 gcloud run deploy $SERVICE_NAME \
